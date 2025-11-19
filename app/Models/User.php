@@ -25,6 +25,10 @@ class User extends Authenticatable
         'department',
         'role',
         'status',
+        'password',
+        'remember_token',
+        'role',
+        'status',
     ];
 
     /**
@@ -76,6 +80,10 @@ class User extends Authenticatable
       // New factory method for Laravel 11
     protected static function newFactory(){
         return UserFactory::new();
+    }
+
+    public function products(){
+        return $this->hasMany(Product::class,'create_by');
     }
 
 }

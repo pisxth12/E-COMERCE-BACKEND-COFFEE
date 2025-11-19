@@ -29,10 +29,23 @@ class StoreUserRequest extends FormRequest
             'department' => 'required|string|max:255',
             'role' => 'required|in:user,admin,manager,editor',
             'status' => 'required|in:active,inactive,pending',
-            'password' => 'nullable|string|min:8',
+            'password' => 'required|min:8',
 
         ];
     }
+
+    public function validated($key = null, $default = null)
+    {
+        $validated = parent::validated($key, $default);
+        
+        // Ensure password key exists in validated data even if not provided
+        if (!array_key_exists('password', $validated)) {
+            $validated['password'] = null;
+        }
+        
+        return $validated;
+    }
+
     public function messages(): array
     {
         return [
