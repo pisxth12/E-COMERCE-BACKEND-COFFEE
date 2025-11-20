@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\ProductImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -11,7 +12,7 @@ class ProductController extends Controller
 {
     public function index(){
         try{
-            $products = Product::with(['category', 'brand' , 'creator'])
+            $products = Product::with(['category', 'brand' , 'creator', 'images'])
         ->where('status', 'active')
         ->orderBy('id', 'desc')
         ->get();
@@ -43,8 +44,13 @@ class ProductController extends Controller
                 'status' => 'sometimes|in:active,inactive',
                 'category_id' => 'required|exists:categories,id',
                 'brand_id' => 'required|exists:brands,id',
-                'create_by' => 'required|exists:users,id'
+                'create_by' => 'required|exists:users,id',
+                'images' => 'sometimes|array',
+                'images.*' => 'required|string' 
+
             ]);
+
+          
             if($validator->fails()){
                 return response()->json([
                     'success' => false,
@@ -54,8 +60,19 @@ class ProductController extends Controller
             }
 
             $data = $validator->validated();
+
             $product = Product::create($data);
-            $product->load(['category', 'brand', 'creator']);
+
+            //Handle upload images
+             if (isset($data['images']) && is_array($data['images'])) {
+                foreach ($data['images'] as $imagePath) {
+                    $product->images()->create([
+                        'image' => $imagePath
+                    ]);
+                }
+            }
+
+            $product->load(['category', 'brand', 'creator', 'images']);
 
             return response()->json([
                 'success' => true,
@@ -75,7 +92,7 @@ class ProductController extends Controller
     //show product
     public function show($id){
         try{
-            $product = Product::find($id);
+            $product = Product::with(['category', 'brand', 'creator', 'images'])->find($id);
             if(!$product){
                 return response()->json([
                     'success' => false,
@@ -101,7 +118,7 @@ class ProductController extends Controller
     //update product
     public function update(Request $request , $id){
         try{
-            $product = Product::find($id);
+            $product = Product::with('images')->find($id);
             if(!$product){
                 return response()->json([
                     'success' => false,
@@ -117,7 +134,9 @@ class ProductController extends Controller
                 'status' => 'sometimes|in:active,inactive',
                 'category_id' => 'sometimes|required|exists:categories,id',
                 'brand_id' => 'sometimes|required|exists:brands,id',
-                'create_by' => 'sometimes|required|exists:users,id'
+                'create_by' => 'sometimes|required|exists:users,id',
+                'images' => 'sometimes|array',
+                'images.*' => 'required|string'
             ]);
 
               if ($validator->fails()) {
@@ -129,10 +148,26 @@ class ProductController extends Controller
             }
 
             $data = $validator->validated();
+
             $product->update($data);
 
+            // Handle upload images
+                        if (isset($data['images']) && is_array($data['images'])) {
+                // Delete existing images (optional - remove if you want to keep old images)
+                // $product->images()->delete();
+                
+                // Add new images
+                foreach ($data['images'] as $imagePath) {
+                    $product->images()->create([
+                        'image' => $imagePath
+                    ]);
+                }
+            }
+
+
+
             //load relationships
-            $product->load(['category', 'brand', 'creator']);
+            $product->load(['category', 'brand', 'creator', 'images']);
 
             return response()->json([
                 'success' => true,
@@ -176,5 +211,84 @@ class ProductController extends Controller
             ], 500);
         }
     }
+
+    //add image
+    public function addImage(Request $request , $id){
+        try{
+            $product = Product::find($id);
+             if(!$product){
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Product not found'
+                ], 404);
+            }
+            $validator = Validator::make($request->all(), [
+                'images' => 'required|array',
+                'images.*' => 'required|string'
+            ]);
+
+           if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $data = $validator->validated();
+
+            // add new image
+            foreach($data['images'] as $imagePath){
+                $product->images()->create([
+                    'image' => $imagePath
+                ]);
+            }
+
+            $product->load('images');
+
+            return response()->json([
+                'success' => true,
+                'data' => $product->images,
+                'message' => 'Image added successfully'
+            ], 201);
+        }catch (\Exception $e) {
+             return response()->json([
+                'success' => false,
+                'message' => 'Failed to add images',
+                'error' => $e->getMessage()
+            ],500);
+        }
+    }
+
+    //delete image
+    public function deleteImage($id , $imageId){
+        try{
+            $image = ProductImage::where('product_id',$id)->where('id',$imageId)->first();
+
+            if(!$image){
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Image not found'
+                ], 404);
+            }
+
+            $image->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Image deleted successfully'
+            ], 200);
+
+            
+
+        }catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete image',
+                'error' => $e->getMessage()
+            ],500);
+        }
+    }
+
 
 }

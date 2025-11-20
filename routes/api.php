@@ -25,5 +25,5 @@ Route::apiResource('brands', BrandController::class);
 
 //product routes
 Route::apiResource('products', ProductController::class);
-
-
+Route::post('products/{id}/images', [ProductController::class, 'addImage']);
+Route::delete('products/{id}/images/{imageId}', [ProductController::class, 'deleteImage']);
