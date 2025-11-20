@@ -22,6 +22,7 @@ Route::apiResource('categories', CategoyController::class);
 
 //brand routes
 Route::apiResource('brands', BrandController::class);
+Route::post('brands/{id}', [BrandController::class, 'update']);
 
 //product routes
 Route::apiResource('products', ProductController::class);

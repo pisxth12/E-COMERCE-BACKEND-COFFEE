@@ -119,7 +119,7 @@ class CategoyController extends Controller
             }
 
             $validator = Validator::make($request->all(), [
-                'name'=> 'required|string|max:255|unique:categories,name'. $id,
+                'name'=> 'required|string|max:255|unique:categories,name,'.$id,
                 'image'=> 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
                 'status'=> 'sometimes|in:active,inactive'        
             ]);
@@ -137,8 +137,8 @@ class CategoyController extends Controller
             //Handle upload image
             if($request->hasFile('image')){
                 //delete old image
-                if($category->image && Storage::exists($request->image)){
-                    Storage::delete($request->image);
+               if($category->image && Storage::disk('public')->exists($category->image)){
+                    Storage::disk('public')->delete($category->image);
                 }
 
                 $data['image'] = $request->file('image')->store('categories', 'public');

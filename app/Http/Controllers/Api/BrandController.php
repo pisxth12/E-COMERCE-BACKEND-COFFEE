@@ -111,11 +111,13 @@ class BrandController extends Controller
             }
 
             $validator = Validator::make($request->all(),[
-                'name' => 'required|string|max:255|unique:brands,name,' . $id,
+                'name' => 'required|string|max:255|unique:brands,name,'.$id,
                 'image' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
                 'category_id' => 'required|exists:categories,id',
                 'status' => 'required'
             ]);
+
+
             if($validator->fails()){
                 return response()->json([
                     'success' => false,
@@ -192,5 +194,7 @@ class BrandController extends Controller
             ], 500);
         }
     }
+
+    
 
 }

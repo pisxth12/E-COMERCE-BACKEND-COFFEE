@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductImage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 class ProductController extends Controller
@@ -213,82 +214,87 @@ class ProductController extends Controller
     }
 
     //add image
-    public function addImage(Request $request , $id){
-        try{
-            $product = Product::find($id);
-             if(!$product){
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Product not found'
-                ], 404);
-            }
-            $validator = Validator::make($request->all(), [
-                'images' => 'required|array',
-                'images.*' => 'required|string'
-            ]);
-
-           if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
-            $data = $validator->validated();
-
-            // add new image
-            foreach($data['images'] as $imagePath){
-                $product->images()->create([
-                    'image' => $imagePath
-                ]);
-            }
-
-            $product->load('images');
-
+   public function addImage(Request $request, $id){
+    try{
+        $product = Product::find($id);
+        if(!$product){
             return response()->json([
-                'success' => true,
-                'data' => $product->images,
-                'message' => 'Image added successfully'
-            ], 201);
-        }catch (\Exception $e) {
-             return response()->json([
                 'success' => false,
-                'message' => 'Failed to add images',
-                'error' => $e->getMessage()
-            ],500);
+                'message' => 'Product not found'
+            ], 404);
         }
-    }
 
+        // FIX: Validate single image file upload
+        $validator = Validator::make($request->all(), [
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // Store the uploaded image file
+        $imagePath = $request->file('image')->store('products', 'public');
+
+        // Create product image record
+        $productImage = $product->images()->create([
+            'image' => $imagePath
+        ]);
+
+        // Load the updated images relationship
+        $product->load('images');
+
+        return response()->json([
+            'success' => true,
+            'data' => $product, // Return full product with images
+            'message' => 'Image added successfully'
+        ], 201);
+        
+    }catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to add image',
+            'error' => $e->getMessage()
+        ],500);
+    }
+}
     //delete image
-    public function deleteImage($id , $imageId){
-        try{
-            $image = ProductImage::where('product_id',$id)->where('id',$imageId)->first();
+   public function deleteImage($id, $imageId){
+    try{
+        $image = ProductImage::where('product_id', $id)->where('id', $imageId)->first();
 
-            if(!$image){
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Image not found'
-                ], 404);
-            }
-
-            $image->delete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Image deleted successfully'
-            ], 200);
-
-            
-
-        }catch (\Exception $e) {
+        if(!$image){
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to delete image',
-                'error' => $e->getMessage()
-            ],500);
+                'message' => 'Image not found'
+            ], 404);
         }
+
+        // Delete the physical image file from storage
+        if ($image->image && Storage::disk('public')->exists($image->image)) {
+            Storage::disk('public')->delete($image->image);
+        }
+
+        // Delete the database record
+        $image->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Image deleted successfully'
+        ], 200);
+
+    }catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to delete image',
+            'error' => $e->getMessage()
+        ],500);
     }
+}
 
 
 }
